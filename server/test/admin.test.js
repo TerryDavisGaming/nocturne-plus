@@ -126,15 +126,30 @@ Deno.test("admin: the admin file route serves hidden entries for review", async 
   assertEquals((await hub.call("GET", `/v1/admin/files/${id}/1`)).status, 401);
 });
 
-Deno.test("admin: pictures waiting, approved or refused", async () => {
+Deno.test("admin: pictures waiting (they only wait when the owner set a delay, or on an older hub), approved or refused", async () => {
   const hub = await makeHub();
   const [a, b] = seedPackages(hub, 2, () => ({ thumb: thumbB64(), picture: "waiting" }));
   const waiting = await admin(hub, "GET", "pictures");
   assertEquals(waiting.body.items.length, 2);
+  assertEquals((await admin(hub, "GET", "overview")).body.picturesWaiting, 2);
   await admin(hub, "POST", `packages/${a}/picture`, { show: true });
   await admin(hub, "POST", `packages/${b}/picture`, { show: false });
   assertEquals(hub.d1.q("SELECT picture_state FROM packages ORDER BY seq").map((r) => r.picture_state), ["shown", "refused"]);
   assertEquals((await admin(hub, "POST", `packages/${a}/picture`, { show: "yes" })).status, 400);
+  assertEquals((await admin(hub, "GET", "pictures")).body.items.length, 0);
+  assertEquals((await admin(hub, "GET", "overview")).body.picturesWaiting, 0);
+});
+
+Deno.test("admin: a shown picture can be refused and shown again, each logged", async () => {
+  const hub = await makeHub();
+  const [id] = seedPackages(hub, 1, () => ({ thumb: thumbB64(), picture: "shown" }));
+  const thumbOf = async () => (await hub.call("GET", `/v1/packages/${id}`)).body.thumb;
+  assertEquals(typeof (await thumbOf()), "string");
+  assertEquals((await admin(hub, "POST", `packages/${id}/picture`, { show: false })).body.pictureState, "refused");
+  assertEquals(await thumbOf(), undefined);
+  assertEquals((await admin(hub, "POST", `packages/${id}/picture`, { show: true })).body.pictureState, "shown");
+  assertEquals(typeof (await thumbOf()), "string");
+  assertEquals(hub.d1.q("SELECT action FROM audit WHERE action LIKE 'picture-%' ORDER BY id").map((r) => r.action), ["picture-refuse", "picture-show"]);
 });
 
 Deno.test("admin: resolving reports", async () => {

@@ -491,8 +491,14 @@ export async function completeUpload(env, request, ctx, uploadId) {
     if (pkg && old === thumb) {
       pictureState = pkg.picture_state;
       pictureDue = pkg.picture_due;
-    } else if ((uploader.trusted_at === null || uploader.picture_refused_at !== null) && delay > 0) {
-      // Only a trusted key whose pictures the owner never refused gets its new ones shown at once.
+    } else if (uploader.picture_refused_at !== null) {
+      // The owner refused a picture of this key: its new pictures wait for the owner's OK whatever the delay (with no
+      // delay set there is no due time, so only the OK shows them), so a refusal can't be walked around by a new
+      // version or a new entry. Otherwise the default is 0 and every picture shows at once.
+      pictureState = "waiting";
+      pictureDue = delay > 0 ? t + delay * 3600 : null;
+    } else if (uploader.trusted_at === null && delay > 0) {
+      // Only when the owner has set a delay: a trusted key still gets its new pictures shown at once, the others wait.
       pictureState = "waiting";
       pictureDue = t + delay * 3600;
     }

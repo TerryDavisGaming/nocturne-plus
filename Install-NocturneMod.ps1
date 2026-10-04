@@ -16,21 +16,22 @@ if (-not $LoaderArchive) { $LoaderArchive = Join-Path $packageRoot 'payload\BepI
 if (-not $PluginPath) { $PluginPath = Join-Path $packageRoot 'payload\NocturnePlus.dll' }
 if (-not $MelonModPath) { $MelonModPath = Join-Path $packageRoot 'payload\NocturnePlus.MelonLoader.dll' }
 
-$modVersion = '2.9.0'
+$modVersion = '2.9.1'
 $loaderHash = 'F4CC496BD098A0DF4164B81E3737297707F13A47C2478DBA2F60EEFAB784817A'
-# The 2.9.0 release build of payload\NocturnePlus.dll.
-$pluginHash = '479573BA571B93B78DFCB7C2BF960A753D770A9DF628EC13174FA264A29996DB'
-# Older copies it knows and upgrades: 2.8.0 as published, and the first 2.8.0 test build (two switches,
+# The 2.9.1 release build of payload\NocturnePlus.dll.
+$pluginHash = 'B4C7C29577A0B1D6C76BDFAA99091C3BB243732A3665A3F6103F6B644841403C'
+# Older copies it knows and upgrades: 2.9.0 and 2.8.0 as published, and the first 2.8.0 test build (two switches,
 # the version in a corner).
 $knownPluginHashes = @(
     $pluginHash,
+    '479573BA571B93B78DFCB7C2BF960A753D770A9DF628EC13174FA264A29996DB',
     '802E8A37C3B381E1D5CAFDBC3067DE51DAA5AC9D554B787B9A5B1AAF3962536F',
     '9CAAE1B5B233602BE0189BC3A2E2A5405F4AAE4CC8F3778DCECE78729033A40C'
 )
-# The 2.9.0 release build of payload\NocturnePlus.MelonLoader.dll.
-$melonModHash = '7338B2BBE495D40B44DBDDF0343D226C36A3A661AE1E0BF41AD54662B2B2DA2E'
-# Older copies it knows and upgrades: 2.8.0 as published, and the first 2.8.0 test build.
-$knownMelonModHashes = @($melonModHash, 'E4379ACC6CFEA5704AE69EC5BD555CD28C50DD08219DBA83B7629A986D817371', 'BEF23F144F9DB0A5EC99C25BF8FA8F9DA01DA3B44C1A3CEFDBC0CC56A170900D')
+# The 2.9.1 release build of payload\NocturnePlus.MelonLoader.dll.
+$melonModHash = '18133FB2C897E944857BDD02FB509593EC906B41F6C7A96D936D41861096A943'
+# Older copies it knows and upgrades: 2.9.0 and 2.8.0 as published, and the first 2.8.0 test build.
+$knownMelonModHashes = @($melonModHash, '7338B2BBE495D40B44DBDDF0343D226C36A3A661AE1E0BF41AD54662B2B2DA2E', 'E4379ACC6CFEA5704AE69EC5BD555CD28C50DD08219DBA83B7629A986D817371', 'BEF23F144F9DB0A5EC99C25BF8FA8F9DA01DA3B44C1A3CEFDBC0CC56A170900D')
 # Up to 2.7.0 the mod was NocturneFlatScroll.dll and NocturneFlatScroll.MelonLoader.dll. A verified copy
 # of those is disabled on install, so only one copy runs, and on uninstall.
 $legacyPluginHashes = @(
@@ -55,10 +56,10 @@ $legacyPluginHashes = @(
 )
 $legacyMelonModHashes = @('274143222C94A734443037773ACFB9EC597EB095FD4FC41FBD9F812169516AE2', '9E9146E36B6D285B104E3B6480302E3E2D147F7CC66600305079960524BD71B8', 'B68FDAA16E417ACE0795F0B14F89CC37BF411601B074F43EDBB6FA41E09CF224', 'D7A85B5541BA00292C761CA7FD287C96CD299B894284959DFC1ED5388B4B0FA0', 'EDA93DF8580864B262E1339A59A4CB96A6C0033C115FAF10444B34F17928EA34', 'AE16BD9C4EB9D468E6BF51B8A780A95B37D59F37252B6466AD6C4DE920F70986', '1D019D17B65C83ACFD747E3DB6446D872F4FA401365F37C0853FAC05C4D0BDC3', 'A872E7BF847981EAB25FCB9CB0B3CCF363517A923DD4B3C0941BA2BDD24BEEC9', '4A9CA300577AD598E5B2498ACDE6ED7D65CABE2DCCE169832BAE9A13A44E4BC0', '3A1876189499D11D57B4102CBD1B88D47EC0E8594EAC0B861B533F2F0414A6BD', 'E7575406BE68712A6853F5166E9847EE38E94C30C7DBCA23DA85E6D364799077', '19DE2BBC86CE71DE8CC48BD06765255A5FC83F4ED34E7CED2619E42EF6C428C7', 'CFB3AFA7C2CA1590D6F3ABEF40A3034FDBB4D69F1D61A153B7AB26C678918921')
 $gameHashes = @{
-    'GameAssembly.dll' = 'D7F8BD3A701D5154EBD57840AD9F1E11D14B307D242CFD53CFCACB72DB50B9D1'
-    'Nocturne_Data\il2cpp_data\Metadata\global-metadata.dat' = 'A8ED37CBD7754037ADC72DC5D4B3A5E5C9D803355B80C8CAF9FE7C0C7BAA33EE'
-    'Nocturne_Data\level2' = 'BB73CB8A1E3CCD47697479D4DCAE2B0DFC1D23E576575D2E1563F223359E127C'
-    'Nocturne_Data\sharedassets2.assets' = '488C3683A13846C82C58907B2DA645A69C00E0918CA48A093CC49F9EEB181685'
+    'GameAssembly.dll' = 'AD2AFCCED1F8AE7E2A63C07DFF42FF35BEA9F4E53F74FF1EE534C60E63905B53'
+    'Nocturne_Data\il2cpp_data\Metadata\global-metadata.dat' = '8677BDCF38149BC4D35E3BF82E8EF40EC5EFBE4050F1497E931C81475A2F91E1'
+    'Nocturne_Data\level2' = '3B8C3019F7D0FE0555BD45DE3F745DC5CD089BBB920D5DC2436F6EF173E98C7A'
+    'Nocturne_Data\sharedassets2.assets' = '072685B76F1AC2BADC8226BDF4E354E7AE63DF86C2924BA51500C355A9137F33'
 }
 
 function Get-Sha256([string]$Path) {
@@ -520,9 +521,9 @@ try {
     if ($manifestPath -and [IO.File]::Exists($manifestPath)) {
         $manifest = $null
         try { $manifest = Read-SharedText $manifestPath }
-        catch { Write-Host "Steam's Nocturne manifest could not be read, so its build number was not checked. The game files match build 25487568." }
-        if ($null -ne $manifest -and ($manifest -notmatch '"appid"\s+"1374860"' -or $manifest -notmatch '"buildid"\s+"25487568"')) {
-            throw 'Steam reports a different Nocturne build. This package supports build 25487568 only.'
+        catch { Write-Host "Steam's Nocturne manifest could not be read, so its build number was not checked. The game files match build 25684815." }
+        if ($null -ne $manifest -and ($manifest -notmatch '"appid"\s+"1374860"' -or $manifest -notmatch '"buildid"\s+"25684815"')) {
+            throw 'Steam reports a different Nocturne build. This package supports build 25684815 only.'
         }
     }
 
@@ -569,7 +570,7 @@ try {
         throw 'The installed mod DLL is read-only. Remove its read-only attribute before upgrading.'
     }
 
-    Write-Host "Preflight passed for Nocturne build 25487568: $gameRoot"
+    Write-Host "Preflight passed for Nocturne build 25684815: $gameRoot"
     if ($selectedLoader -eq 'MelonLoader') {
         Write-Host ("Installing for MelonLoader {0}. This package was tested with MelonLoader 0.7.3." -f (Get-MelonLoaderVersion $gameRoot))
     }

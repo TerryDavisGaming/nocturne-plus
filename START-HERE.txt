@@ -1,5 +1,5 @@
-nocturne+ 2.9.0 (formerly nocturne but better, and nocturne flat scroll)
-windows x64 | steam nocturne 1.0.1 | tested steam build 25487568
+nocturne+ 2.9.1 (formerly nocturne but better, and nocturne flat scroll)
+windows x64 | steam nocturne 1.0.2 | tested steam build 25684815
 works with bepinex 6 (bundled) or melonloader 0.7.3 and newer (not bundled)
 
 install
@@ -56,6 +56,9 @@ install
    hit sound volume - 5% to 100%; the game's sound effect volumes apply too
    miss sound       - on or off; the same setting as note miss sounds
    miss sound volume - 10% to 300%; 100% is the game's normal level
+   main menu music  - on to start with; off silences the music on the
+                      title screen and in the menus. battle and story
+                      music play as always
 7. in options > graphics, under corruption effects:
    performance      - normal (the game as it ships), optimized (the mod
                       does less work each frame; it looks and plays
@@ -73,6 +76,27 @@ which loader gets used
 only one copy runs at a time. to switch loaders, run install.cmd again; it
 disables the copy for the other loader. do not keep bepinex and melonloader
 in the same game folder, because only one of them can start.
+
+new in 2.9.1
+- works with the game's 1.0.2 update (steam build 25684815). the update
+  renamed a piece of the game's code that 2.9.0's custom battle dialogue
+  hooked into by name, so battles played without their lines. 2.9.1 finds
+  that piece by its shape, so a renumbering like that no longer matters.
+  the installer and the fullscreen fix script only accept build 25684815
+  now; a later steam update needs another compatibility check.
+- main menu music, a new switch at the bottom of options > audio. turn it
+  off and the music on the title screen and in the menus reached from it
+  (the arcade, custom battles, the hub) fades out and stays off. battle
+  and story music play as always. it starts on.
+- on the hub, once its server has the matching update, a custom battle's
+  listing picture shows as soon as the upload is done, with nothing for
+  the hub's owner to approve first. the owner can still take a picture
+  down afterwards.
+- 2.9.1 was tested in the game on bepinex and on melonloader, on the
+  updated game: custom battle dialogue, the main menu music switch, your
+  own note colors, performance, the click-through fix and, on bepinex,
+  quick save. package-verification.txt and the readme's "what was tested"
+  (on github) have the details.
 
 new in 2.9.0
 - performance, a new row in options > graphics (see step 7). optimized
@@ -245,10 +269,10 @@ controller button still does.
 installations start on default, 0%, 100% size and spacing, default skin,
 note flares on, timing bar off and below the enemy, enemy attack opacity
 100%, infinite consumables and all items off, quick save & load off with
-ctrl and f1 to f11, hit sound off at 80%, miss sound volume 100%, and
-performance on normal. your selections are saved on that pc. the title
-screen and the intro's logo card read "nocturne+", and on the title's
-menu "nocturne+ 2.9.0 by terrydavisgaming" shows after the game's version
+ctrl and f1 to f11, hit sound off at 80%, miss sound volume 100%, main
+menu music on, and performance on normal. your selections are saved on
+that pc. the title screen and the intro's logo card read "nocturne+", and
+on the title's menu "nocturne+ 2.9.1 by terrydavisgaming" shows after the game's version
 at the bottom right.
 
 optional fullscreen flicker fix
@@ -275,7 +299,11 @@ if something does not work
 - melonloader too old: update it to 0.7.3 or newer, then run install.cmd.
 - options rows missing: check bepinex\logoutput.log or
   melonloader\latest.log in the game folder. confirm the zip was fully
-  extracted before running install.cmd.
+  extracted before running install.cmd. after a game update the loader
+  rebuilds its copies of the game's code on the first start, which takes
+  a minute or two; if that start was closed halfway, delete the
+  bepinex\interop folder (melonloader: melonloader\il2cppassemblies) in
+  the game folder and start the game again.
 - a custom battle is missing from the arcade: open it in the battle
   creator to see its problems. the loader's log (bepinex\logoutput.log or
   melonloader\latest.log) says why the arcade skipped it.
@@ -288,7 +316,7 @@ if something does not work
   this package must be checked again after a game update.
 
 share
-send the original nocturne-plus-2.9.0-windows.zip to the other person
+send the original nocturne-plus-2.9.1-windows.zip to the other person
 or device. they need their own installed copy of nocturne. the package
 contains no game assets, game-generated assemblies, saves, or account data.
 it does not support macos, linux, or steam deck through these installers.

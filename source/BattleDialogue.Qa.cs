@@ -15,13 +15,22 @@ namespace NocturnePlus;
 /// takes the box"), and each live line's time against the song's. Each state has the boxes'
 /// background alpha ("live box alpha normal 0.72, narrator 1.00").
 /// With NFS_QA_DIALOGUE=auto, every line that waits for a key goes on by itself after 2.5 s
-/// instead, for hands-free runs (not the real key path). Nothing else changes.
+/// instead, for hands-free runs (not the real key path). With NFS_QA_DIALOGUE=1 and
+/// NFS_QA_DIALOGUE_PRESS=1, each line that waits for a key also logs "QA dialogue: PRESS #n ENTER
+/// HOLD 60" a moment after its picture is due (again every 5 s while it still waits, 4 presses at
+/// most), which qa\Run-Plus.ps1 answers with a real Enter while the game is in front. Nothing
+/// else changes.
 /// </summary>
 internal static partial class BattleDialogue
 {
     private static readonly string? QaMode = QaBuild.Env("NFS_QA_DIALOGUE");
     private static readonly bool QaOn = QaMode is "1" or "auto";
     private static readonly bool QaAuto = QaMode == "auto";
+    private static readonly bool QaPress = QaMode == "1" && QaBuild.Env("NFS_QA_DIALOGUE_PRESS") == "1";
+    /// <summary>The Enter for a line that waits for a key comes this long after it finished typing (its picture is due 1.2 s after it starts), and again every QaPressAgain.</summary>
+    private const float QaPressDelay = 1.6f, QaPressAgain = 5f;
+    private const int QaPressMax = 4;
+    private static int qaPressCount;
     /// <summary>How long a line that waits for a key shows with NFS_QA_DIALOGUE=auto.</summary>
     private const double QaAutoSeconds = 2.5;
     /// <summary>A line's picture is taken this long after it starts typing, so the box is mostly typed.</summary>
@@ -52,6 +61,10 @@ internal static partial class BattleDialogue
         private int qaVisible;
         private readonly Dictionary<IntPtr, (int Visible, string Text)> qaSeen = new();
         private string? qaLive;
+        // The line that waits for a key and its Enter (QaPress): the block and line, when the next press is due, how many were asked for.
+        private Block? qaPressBlock;
+        private int qaPressLine, qaPressTries;
+        private float qaPressAt;
 
         private void QaShot(float delay, string what, Block? of = null, string? dump = null)
         {
@@ -79,8 +92,30 @@ internal static partial class BattleDialogue
                     if (shot.Dump != null) QaDump(shot.Dump);
                 }
                 QaFollow(now);
+                QaPressDue(now);
             }
             catch (Exception ex) { ModLog.Info($"Battle dialogue QA: following the lines failed ({ex.Message})."); }
+        }
+
+        // QaPress: a real Enter is asked for once the line that waits for a key has been shown a while, and again if it still waits.
+        private void QaPressDue(float now)
+        {
+            if (qaPressBlock == null) return;
+            if (Current != qaPressBlock || qaPressBlock.Finished || qaLine != qaPressLine)
+            {
+                qaPressBlock = null;
+                return;
+            }
+            if (now < qaPressAt) return;
+            if (qaPressTries >= QaPressMax)
+            {
+                ModLog.Info($"QA dialogue: no more Enter presses for line {qaLine + 1} of {DialogueReader.Key(qaPressBlock.Section)}.");
+                qaPressBlock = null;
+                return;
+            }
+            qaPressTries++;
+            qaPressAt = now + QaPressAgain;
+            ModLog.Info($"QA dialogue: PRESS #{++qaPressCount} ENTER HOLD 60");
         }
 
         // A line starts typing when its box's typing count drops (the game's typing starts it at 0)
@@ -128,6 +163,13 @@ internal static partial class BattleDialogue
             if (!typed) return;
             qaWaited = true;
             ModLog.Info($"Battle dialogue: WAITING-KEY {DialogueReader.Key(b.Section)} {qaLine + 1}");
+            if (QaPress)
+            {
+                qaPressBlock = b;
+                qaPressLine = qaLine;
+                qaPressTries = 0;
+                qaPressAt = now + QaPressDelay;
+            }
         }
 
         // Both boxes' text as it is just before a block runs (its first line can start typing at once).

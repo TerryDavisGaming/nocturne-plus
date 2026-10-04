@@ -1,3 +1,129 @@
+nocturne+ 2.9.1 package verification
+checked october 3, 2026 on windows 11, using windows powershell 5.1, on
+nocturne 1.0.2 (steam build 25684815).
+
+the dlls
+- both were built from the package's source (crlf) with -c Release,
+  against the interop assemblies bepinex and melonloader 0.7.3 generated
+  from the updated game.
+- payload/NocturnePlus.dll
+  b4c7c29577a0b1d6c76bdfaa99091c3bb243732a3665a3f6103f6b644841403c
+  payload/NocturnePlus.MelonLoader.dll
+  18133fb2c897e944857bdd02fb509593ec906b41f6c7a96d936d41861096a943
+- the package's source rebuilds into the same two dlls, byte for byte.
+- the installer also takes the published 2.9.0 dlls (479573ba... and
+  7338b2bb...), the published 2.8.0 dlls (802e8a37... and e4379acc...)
+  and the first 2.8.0 test build's (9caae1b5... and bef23f14...) as
+  copies to upgrade.
+- both release dlls were started in the game, one loader at a time:
+  "Nocturne+ 2.9.1 loaded" and the title's version text, with no error
+  or exception in the log.
+
+the installer
+109 checks were planned against throwaway copies of the game files, with
+every registry write blocked: 89 passed, none failed, and 20 were skipped
+(below). the real game folder, its plugin and mods folders, the
+melonloader sandbox and the game's preferences key were unchanged
+afterwards. the game files are the updated ones: the installer's pins (the
+game code, its metadata, and two of the original layout files) are the
+1.0.2 build's.
+- every package script parses, the installer's pins match the payload, and
+  SHA256SUMS.txt matches every file.
+- a bepinex install with the bundled loader, its -whatif preview, a repeat
+  install that changes nothing, melonloader installs and refusals, loader
+  switching, doorstop conflicts, uninstall and its preview, and a declined
+  confirmation.
+- a wrong steam build and a game file the installer doesn't know are
+  refused.
+- upgrading from the published 2.9.0 installs 2.9.1 and keeps the old dll
+  as a backup, on both loaders (the published 2.9.0 package's own dlls).
+- upgrading from the published 2.8.0 installs 2.9.1 and keeps the old dll
+  as a backup, on both loaders.
+- upgrading from nocturne but better 2.1.2, 2.5.0, 2.6.1, 2.6.2 and 2.7.0
+  turns the old copy off and keeps it as .disabled-, on both loaders (2.1.2
+  had no melonloader build), and the preview names it.
+- 20 checks were skipped. 16 are upgrades from 8 older nocturne but better
+  versions (2.2.0, the 2.3.0 test build, 2.3.0, 2.4.0, 2.4.1, both 2.5.0
+  test builds and 2.6.0, each for two loaders) whose dlls were gone from the
+  test pc. the other 4 set a game up with the 2.7.0 or 2.8.0 package's own
+  installer first; those installers only accept game 1.0.1's files and
+  refuse the updated ones, so the checks can't run on them. the same
+  upgrades from those versions' dlls ran as the checks above.
+- unknown dlls at the new or the old paths are refused.
+- the steam library lookups (fake steam folders and registry values), both
+  fullscreen fix scripts, odd temp folders, and install.cmd and
+  uninstall.cmd from a folder with an odd name.
+- uninstall looks for potato's saved settings only through the guard, which
+  finds no key in a test copy. the step itself ran on a test registry key
+  only.
+
+the fullscreen fix, on the real game file
+the script's pins for build 25684815 were checked with -WhatIf, then the
+fix was enabled on the test pc's own globalgamemanagers: the file went
+from the pinned original to the pinned patched hash, the game started on
+direct3d 11 (it starts on direct3d 12 without the fix), and restoring put
+the original back byte for byte. the backup copy the test made was then
+removed, so the game folder was as it was found.
+
+gameplay coverage
+both loaders were tested in-game with qa builds: the release source plus
+test hooks, on nocturne 1.0.2 with bepinex 6.0.0-be.788 and melonloader
+0.7.3. every run took a snapshot of the player's plugin, settings and
+saves first and put it back afterwards. no run changed a story .sav file.
+the sweep below ran on the final source, except three bepinex runs (quick
+save, note colors, performance): see the note after the list.
+per loader:
+- custom battle dialogue: 37 of 37 checks and 8 of 8 after-run checks with
+  the lines going on by themselves, and 26 of 26 and 8 of 8 with real enter
+  presses for the lines that wait for a key. a battle with lines before the
+  fight, during it (including lines that stop the song) and after a win was
+  played twice, and one battle was loaded from a file. the first run on
+  2.9.0's code, on the same game (bepinex only), passed 12 and failed 25:
+  the update renamed the compiler's lambda that the dialogue's end-of-battle
+  hook looked up by name, so the dialogue wasn't installed.
+- main menu music: 17 of 17 checks, and 18 of 18 when the game starts with
+  the setting already saved as off. continuing into the story with it off
+  passed 4 of 4: the story's music started at the same moment as in a
+  control run with the setting on (the control ran on bepinex). the music
+  state, the playing segment and the beat callbacks were read from the
+  game's audio engine; no sound was recorded.
+- your own note colors: 33 of 33 checks (31 as in 2.9.0 plus two for
+  akuma in the note colors row). the game's new note preview shows under
+  the mod's custom note colors row, and the screenshots show no overlap.
+- performance: 30 of 30 checks in the menus and the story, and 12 of 12
+  in battles.
+- clicks through the chart editor and the battle creator: 10 of 10.
+- quick save slots: 31 of 31 on bepinex only, with real key presses. the
+  check for a slot from another playthrough used slot 11, because f7 never
+  reached the game on the test pc: a check found f7, f8, f9 and f12
+  already registered as global hotkeys by another program there.
+note on those three bepinex runs: they passed on the source from before the
+last small edits (the version number, comments, one error message and some
+wording) but not when repeated on the final build in the evening: keys and
+clicks didn't reach the game, which switched to mouse mode and lost its
+selection. the published 2.9.0 code failed the same checks in the same way
+on the same pc in the same hour, and the melonloader runs of palettes and
+modes passed on the final build, so it was the test pc, not the code.
+one melonloader run of the start-with-music-off check also lost its selection
+once (a key navigation check) and passed 18 of 18 when repeated.
+the update rewrote 36 of the game's audio banks. the music table the mod
+uses (research/music/musicmap.py, which maps the game's songs to their
+audio in the banks) was rebuilt from the new banks and is byte for byte the
+same as the one made from the old banks, and every audio source the mod's
+table points at (24 inside banks, 107 loose files) still has the same
+position, size and format.
+the hub's server code: 185 deno tests passed (163 on 2.9.0's server code);
+the two for a key the owner refused a picture of fail on the previous
+code. the pictures change was tested against stand-ins, not the live hub.
+not tried in the game: akuma's colors by controller button in battle, quick
+save on melonloader, dialogue lines after a loss and skipping lines by
+holding a key, the hit and miss sound levels on the rewritten sound
+effects bank, the installer on a real game folder, and the two latency
+test fixes (checked in the game's code). uninstall's step for potato's
+settings ran on a test registry key.
+
+---
+
 nocturne+ 2.9.0 package verification
 checked september 30, 2026 on windows 11, using windows powershell 5.1.
 

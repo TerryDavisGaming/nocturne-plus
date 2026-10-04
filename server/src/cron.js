@@ -58,6 +58,31 @@ export async function emptyTrash(env, t = now()) {
   return { deleted: results.length, bytes };
 }
 
+/**
+ * Migration 0003 for a database that never got it (a build that ran `wrangler deploy` without the migrations):
+ * pictures show at once by default, so the seeded 24-hour delay goes to 0 and waiting pictures are shown. The
+ * same steps and the same marker row as migrations/0003_pictures_at_once.sql, so it runs once, whichever comes
+ * first, and never undoes a delay the owner sets afterwards. That file says what each step keeps.
+ */
+export async function pictureCatchUp(env) {
+  const db = env.DB;
+  if ((await getSetting(db, "pictures_at_once")) === "1") return { ran: false };
+  const [delay, shown] = await db.batch([
+    db.prepare(
+      "UPDATE settings SET v = '0' WHERE k = 'picture_delay_hours' AND v = '24' " +
+        "AND NOT EXISTS (SELECT 1 FROM settings WHERE k = 'pictures_at_once') " +
+        "AND NOT EXISTS (SELECT 1 FROM audit WHERE action = 'settings' AND detail LIKE '%\"picture_delay_hours\"%')",
+    ),
+    db.prepare(
+      "UPDATE packages SET picture_state = 'shown', picture_due = NULL WHERE picture_state = 'waiting' AND picture_due IS NOT NULL " +
+        "AND NOT EXISTS (SELECT 1 FROM settings WHERE k = 'pictures_at_once') " +
+        "AND coalesce((SELECT v FROM settings WHERE k = 'picture_delay_hours'), '0') = '0'",
+    ),
+    db.prepare("INSERT OR IGNORE INTO settings (k, v) VALUES ('pictures_at_once', '1')"),
+  ]);
+  return { ran: true, delayReset: delay.meta.changes, shown: shown.meta.changes };
+}
+
 /** Uploaders' pictures whose delay is over are shown (unless the owner refused them). */
 export async function showDuePictures(env, t = now()) {
   const r = await env.DB.prepare(
@@ -146,6 +171,7 @@ export async function runCron(event, env, ctx) {
     await job("expire", () => expireIdleUploads(env), report);
     await job("trash", () => emptyTrash(env), report);
     await job("purges", () => runPurges(env, ctx, { inScheduled: true }), report);
+    await job("pictureCatchUp", () => pictureCatchUp(env), report);
     await job("pictures", () => showDuePictures(env), report);
     if (Math.floor(t / 3600) % 6 === 0) await job("fold", () => foldDownloads(env), report);
   } else if (cron === DAILY) {

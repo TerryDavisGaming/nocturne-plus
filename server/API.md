@@ -68,7 +68,7 @@ Card = { "id", "kind": "battle"|"charts", "version", "status": "live", "title", 
   "lengthSeconds": <number> | null, "bpm": [low, high] | null,
   "flags": { "gear", "level", "dialogue", "video" },
   "source": null | { "kind": "osu!mania", "mapper" }, "format", "requires": [feature names],
-  "thumb": "<base64 baseline jpeg>" }   // thumb is left out while the picture waits or was refused
+  "thumb": "<base64 baseline jpeg>" }   // thumb is left out if the owner refused the picture, or while it waits (see pictureState below)
 ```
 
 title, artist, author, lanes, battle id, songs, flags and format come from the package file itself. difficulties, length and bpm are what the uploader declared: check them against the file after download. show NEEDS A NEWER MOD when `format` is above what the mod reads or `requires` names a feature it doesn't know.
@@ -109,7 +109,7 @@ the key is `nbbk1_` + 43 base64url characters (32 random bytes, no padding). the
 | `GET /v1/me/packages` | 200 `{ "items": [MyCard] }`: every status, up to 200 |
 | `DELETE /v1/packages/:id` | 204; 403 `not_yours`; 404; 410 |
 
-`Uploader = { "id", "name", "tag", "createdAt", "status": "ok"|"banned", "strikes", "trusted" }`. `MyCard` = a `Card` (with the thumbnail whatever its state) plus `"description", "removedReason", "removedNote", "removedAt", "pictureState": "waiting"|"shown"|"refused"`. its `status` is one of `live`, `hidden` ("under review"), `removed` or `deleted` (by the uploader).
+`Uploader = { "id", "name", "tag", "createdAt", "status": "ok"|"banned", "strikes", "trusted" }`. `MyCard` = a `Card` (with the thumbnail whatever its state) plus `"description", "removedReason", "removedNote", "removedAt", "pictureState": "waiting"|"shown"|"refused"`. a picture is `shown` the moment its upload finishes; it is `waiting` only when the hub's owner set a delay (`picture_delay_hours` above 0) or the owner refused an earlier picture of the same key (then it waits for the owner's ok), and `refused` when the owner took it down. its `status` is one of `live`, `hidden` ("under review"), `removed` or `deleted` (by the uploader).
 
 removal reasons (`removedReason`, and lookup's `reason`): `copyright`, `offensive`, `malicious`, `spam`, `rules` (broke the hub's rules), `other`. show your own words for each and the owner's `removedNote` under them.
 
@@ -161,4 +161,4 @@ sha-256 (lower-case hex) of one line per central directory entry, `<name>\0<unco
 
 ## the thumbnail
 
-a baseline jpeg (sof0) of at most 256 by 256 px, at most 20 segments before its scan, ending with eoi, at most 16384 characters of base64. the server reads its markers and never decodes it; show it only through the game's own `LoadImage` after the same check.
+a baseline jpeg (sof0) of at most 256 by 256 px, at most 20 segments before its scan, ending with eoi, at most 16384 characters of base64. the server reads its markers and never decodes it; show it only through the game's own `LoadImage` after the same check. the hub shows an uploader's thumbnail at once, with no review (unless the owner set a delay), so these checks and the owner's refuse button are all that stand between an upload and the listing.

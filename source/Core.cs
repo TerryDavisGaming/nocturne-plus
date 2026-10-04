@@ -7,7 +7,7 @@ internal static class ModInfo
     // Kept from the mod's first name (nocturne flat scroll), so upgrades keep the loaders' settings.
     public const string Id = "local.nocturne.flat-scroll";
     public const string Name = "Nocturne+";
-    public const string Version = "2.9.0";
+    public const string Version = "2.9.1";
     public const string Author = "TerryDavisGaming";
 
     /// <summary>
@@ -80,6 +80,7 @@ public static class SettingsState
     private const string OldQuickSaveKey = "NocturnePlus.QuickSave.v1";
     private const string OldQuickLoadKey = "NocturnePlus.QuickLoad.v1";
     private const string PerformanceKey = "NocturnePlus.Performance.v1";
+    private const string MenuMusicKey = "NocturnePlus.MenuMusic.v1";
     public const int MinReceptorHeight = -10;
     public const int MaxReceptorHeight = 30;
     private static ScrollMode? _mode;
@@ -94,6 +95,7 @@ public static class SettingsState
     private static bool? _onlineHub;
     private static bool? _quickSaveLoad;
     private static PerformanceMode? _performance;
+    private static bool? _menuMusic;
     public static ScrollMode Mode => _mode ??= LoadMode();
 
     /// <summary>How notes and receptors are drawn; Default keeps the game's own bars.</summary>
@@ -218,6 +220,17 @@ public static class SettingsState
         PlayerPrefs.SetInt(QuickSaveLoadKey, value ? 1 : 0);
         PlayerPrefs.Save();
         ModLog.Info("Quick save & load: " + (value ? "On" : "Off"));
+    }
+
+    /// <summary>Whether the music on the title screen and the menus plays (MenuMusic). On unless turned off.</summary>
+    public static bool MenuMusic => _menuMusic ??= PlayerPrefs.GetInt(MenuMusicKey, 1) == 1;
+
+    public static void SetMenuMusic(bool value)
+    {
+        _menuMusic = value;
+        PlayerPrefs.SetInt(MenuMusicKey, value ? 1 : 0);
+        PlayerPrefs.Save();
+        ModLog.Info("Main menu music: " + (value ? "On" : "Off"));
     }
 
     /// <summary>The Performance setting. Normal unless changed; Performance.SetMode changes it.</summary>
@@ -410,6 +423,7 @@ internal static class ModSetup
         Run("Timing bar", () => TimingBar.Install(harmony));
         Run("Hit sound", () => HitSound.Install(harmony));
         Run("Miss sound", () => MissSound.Install(harmony));
+        Run("Main menu music", () => MenuMusic.Install(harmony));
         Run("Ready key filter", () => ReadyKeyFilter.Install(harmony));
         Run("Note color preview", () => NoteColorPreview.Install(harmony));
         Run("Custom charts", () => ChartSwap.Install(harmony));
@@ -684,6 +698,7 @@ internal static class LayoutDriver
         FirstBattleWarmup.Tick();
         HitSound.Update();
         MissSound.Update();
+        MenuMusic.Update();
         try { CustomChartOptions.Update(); }
         catch (Exception ex) { ReportOnce(ref _reportedChartError, "Custom chart options failed: ", ex); }
         ChapterBadges.Update();

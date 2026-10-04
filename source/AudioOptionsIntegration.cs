@@ -10,7 +10,7 @@ namespace NocturnePlus;
 /// <summary>
 /// Adds the hit sound and miss sound settings to Options > Audio, under Sound Effects. Each
 /// is an on/off switch (a copy of the Gameplay page's own switch) and a volume slider (a copy
-/// of the Audio page's own slider).
+/// of the Audio page's own slider). The Main menu music setting follows them: a switch alone.
 /// </summary>
 internal static class AudioOptionsIntegration
 {
@@ -42,6 +42,19 @@ internal static class AudioOptionsIntegration
                 var toggle = gameplay.missSoundEffectToggle;
                 if (toggle && toggle.IsOn != MissSound.Enabled) toggle.SetValueInstant(MissSound.Enabled);
             }),
+        // A switch alone, no volume: the game's Music sliders keep setting how loud its music is. Offered only when
+        // the patch that silences the menu music is in.
+        new("PlusMenuMusic",
+            "Main menu music",
+            "Turn this off to silence the music on the title screen and menus. Battle and story music are not affected.",
+            null,
+            () => SettingsState.MenuMusic,
+            MenuMusic.SetEnabled,
+            null,
+            () => { },
+            () => { },
+            null,
+            () => MenuMusic.Available),
     };
 
     private static readonly Dictionary<int, AudioRows> Menus = new();
@@ -83,7 +96,7 @@ internal static class AudioOptionsIntegration
                 rows = AudioRows.Create(__instance);
                 if (rows == null) return;
                 Menus[id] = rows;
-                ModLog.Info("Added hit and miss sound rows to Options > Audio.");
+                ModLog.Info("Added the hit sound, miss sound and main menu music rows to Options > Audio.");
             }
             rows.Sync();
             rows.Link();
@@ -97,17 +110,21 @@ internal static class AudioOptionsIntegration
 
     private sealed class SoundSpec
     {
-        internal readonly string Id, Title, Help, VolumeTitle;
+        internal readonly string Id, Title, Help;
+        // Without a volume (null), the sound has its switch only.
+        internal readonly string? VolumeTitle;
         internal readonly Func<bool> IsOn;
         internal readonly Action<bool> SetOn;
-        internal readonly PercentSetting Volume;
+        internal readonly PercentSetting? Volume;
         internal readonly Action Preview, CancelPreview;
         // Updates the game's own row for the same setting, if there is one.
         internal readonly Action<GameplayOptionsMenu>? SyncNative;
+        // Whether to offer the rows at all (null: always).
+        internal readonly Func<bool>? Available;
 
-        internal SoundSpec(string id, string title, string help, string volumeTitle, Func<bool> isOn,
-                           Action<bool> setOn, PercentSetting volume, Action preview, Action cancelPreview,
-                           Action<GameplayOptionsMenu>? syncNative)
+        internal SoundSpec(string id, string title, string help, string? volumeTitle, Func<bool> isOn,
+                           Action<bool> setOn, PercentSetting? volume, Action preview, Action cancelPreview,
+                           Action<GameplayOptionsMenu>? syncNative, Func<bool>? available = null)
         {
             Id = id;
             Title = title;
@@ -119,6 +136,7 @@ internal static class AudioOptionsIntegration
             Preview = preview;
             CancelPreview = cancelPreview;
             SyncNative = syncNative;
+            Available = available;
         }
     }
 
@@ -157,6 +175,7 @@ internal static class AudioOptionsIntegration
                 int index = uiRow.GetSiblingIndex() + 1;
                 foreach (var spec in Specs)
                 {
+                    if (spec.Available != null && !spec.Available()) continue;
                     var row = SoundRows.Create(spec, gameplay!, content, uiRow, template!, indent, index);
                     rows.Add(row);
                     index = row.NextSiblingIndex;
@@ -185,7 +204,7 @@ internal static class AudioOptionsIntegration
             foreach (var row in _rows)
             {
                 chain.Add(row.Button);
-                chain.Add(row.Slider);
+                if (row.Slider != null) chain.Add(row.Slider);
             }
             chain.Add(master);
             for (int i = 1; i < chain.Count - 1; i++) SetVertical(chain[i], chain[i - 1], chain[i + 1]);
@@ -221,19 +240,21 @@ internal static class AudioOptionsIntegration
     {
         private readonly SoundSpec _spec;
         private readonly GameplayOptionsMenu _gameplay;
-        private readonly GameObject _toggleRoot, _sliderRoot;
+        private readonly GameObject _toggleRoot;
+        // The volume row; null for a sound with a switch only.
+        private readonly GameObject? _sliderRoot;
         private readonly CustomToggleButton _toggle;
         private readonly CustomSliderSegments? _segments;
         // The native callbacks hold these wrappers; keep them alive as long as the rows.
         private readonly UnityAction _click;
         private readonly Il2CppSystem.Action _toggled;
-        private readonly UnityAction<int> _volumeChanged;
-        private readonly Il2CppSystem.Func<float, string> _formatVolume;
+        private readonly UnityAction<int>? _volumeChanged;
+        private readonly Il2CppSystem.Func<float, string>? _formatVolume;
         internal readonly CustomButton Button;
-        internal readonly CustomSlider Slider;
+        internal readonly CustomSlider? Slider;
 
         private SoundRows(SoundSpec spec, GameplayOptionsMenu gameplay, GameObject toggleRoot, CustomButton button,
-                          CustomToggleButton toggle, GameObject sliderRoot, CustomSlider slider)
+                          CustomToggleButton toggle, GameObject? sliderRoot, CustomSlider? slider)
         {
             _spec = spec;
             _gameplay = gameplay;
@@ -242,26 +263,27 @@ internal static class AudioOptionsIntegration
             _toggle = toggle;
             _sliderRoot = sliderRoot;
             Slider = slider;
-            _segments = slider.GetComponent<CustomSliderSegments>();
             _click = DelegateSupport.ConvertDelegate<UnityAction>((Action)Clicked)
                 ?? throw new InvalidOperationException($"Could not create the {spec.Title} click listener.");
             _toggled = DelegateSupport.ConvertDelegate<Il2CppSystem.Action>((Action)Toggled)
                 ?? throw new InvalidOperationException($"Could not create the {spec.Title} switch listener.");
+            Button.onClick.AddListener(_click);
+            _toggle.OnToggleValue = _toggled;
+            if (slider == null) return;
+            _segments = slider.GetComponent<CustomSliderSegments>();
             _volumeChanged = DelegateSupport.ConvertDelegate<UnityAction<int>>((Action<int>)VolumeChanged)
                 ?? throw new InvalidOperationException($"Could not create the {spec.VolumeTitle} listener.");
             _formatVolume = DelegateSupport.ConvertDelegate<Il2CppSystem.Func<float, string>>((Func<float, string>)FormatVolume)
                 ?? throw new InvalidOperationException($"Could not create the {spec.VolumeTitle} label.");
-            Button.onClick.AddListener(_click);
-            _toggle.OnToggleValue = _toggled;
-            Slider.onValueChangedInt.AddListener(_volumeChanged);
+            slider.onValueChangedInt.AddListener(_volumeChanged);
             // The page's own label shows the slider's fraction of its range, which is only
             // the volume when the range ends at 100.
             if (_segments) _segments!.FormatTextFunc = _formatVolume;
         }
 
-        internal bool IsAlive => _toggleRoot && _sliderRoot && Button && _toggle && Slider;
+        internal bool IsAlive => _toggleRoot && Button && _toggle && (_sliderRoot == null || (_sliderRoot && Slider));
 
-        internal int NextSiblingIndex => _sliderRoot.transform.GetSiblingIndex() + 1;
+        internal int NextSiblingIndex => (_sliderRoot ?? _toggleRoot).transform.GetSiblingIndex() + 1;
 
         internal static SoundRows Create(SoundSpec spec, GameplayOptionsMenu gameplay, RectTransform content,
                                          RectTransform uiRow, CustomButton template, float indent, int siblingIndex)
@@ -302,21 +324,25 @@ internal static class AudioOptionsIntegration
                 button.onClick = new Button.ButtonClickedEvent();
 
                 // Volume row: a copy of the page's UI SFX slider row.
-                sliderRoot = Object.Instantiate(uiRow.gameObject, content, false);
-                sliderRoot.name = "Slider_Sfx_" + spec.Id + "Volume";
-                sliderRoot.transform.SetSiblingIndex(wrapper.GetSiblingIndex() + 1);
-                StripLabelLocalization(sliderRoot);
-                var slider = sliderRoot.GetComponentInChildren<CustomSlider>(true);
-                if (!slider) throw new InvalidOperationException("The volume row has no slider.");
-                slider.gameObject.name = "Slider_" + spec.Id + "Volume";
-                slider.FirstSelection = false;
-                slider.wholeNumbers = true;
-                slider.minValue = 0f;
-                slider.maxValue = spec.Volume.Max;
-                slider.SetStepSize(spec.Volume.Step);
-                // The preview replaces the slider's own tick.
-                slider.PlayValueChangeSfx = false;
-                slider.Text = spec.VolumeTitle;
+                CustomSlider? slider = null;
+                if (spec.Volume != null)
+                {
+                    sliderRoot = Object.Instantiate(uiRow.gameObject, content, false);
+                    sliderRoot.name = "Slider_Sfx_" + spec.Id + "Volume";
+                    sliderRoot.transform.SetSiblingIndex(wrapper.GetSiblingIndex() + 1);
+                    StripLabelLocalization(sliderRoot);
+                    slider = sliderRoot.GetComponentInChildren<CustomSlider>(true);
+                    if (!slider) throw new InvalidOperationException("The volume row has no slider.");
+                    slider.gameObject.name = "Slider_" + spec.Id + "Volume";
+                    slider.FirstSelection = false;
+                    slider.wholeNumbers = true;
+                    slider.minValue = 0f;
+                    slider.maxValue = spec.Volume.Max;
+                    slider.SetStepSize(spec.Volume.Step);
+                    // The preview replaces the slider's own tick.
+                    slider.PlayValueChangeSfx = false;
+                    slider.Text = spec.VolumeTitle;
+                }
 
                 return new SoundRows(spec, gameplay, toggleRoot, button, toggle, sliderRoot, slider);
             }
@@ -351,13 +377,16 @@ internal static class AudioOptionsIntegration
                 // when the setting changed somewhere else.
                 bool on = _spec.IsOn();
                 if (_toggle.IsOn != on) _toggle.SetValueInstant(on);
-                Slider.SetValueWithoutNotify(_spec.Volume.Value);
-                if (_segments) _segments!.Refresh();
+                if (Slider != null)
+                {
+                    Slider.SetValueWithoutNotify(_spec.Volume!.Value);
+                    if (_segments) _segments!.Refresh();
+                }
             }
             finally { syncing = false; }
         }
 
-        private string FormatVolume(float fraction) => PercentSetting.Format(Mathf.RoundToInt(Slider.value));
+        private string FormatVolume(float fraction) => PercentSetting.Format(Mathf.RoundToInt(Slider!.value));
 
         private void Clicked()
         {
@@ -395,7 +424,7 @@ internal static class AudioOptionsIntegration
             if (syncing) return;
             try
             {
-                var setting = _spec.Volume;
+                var setting = _spec.Volume!;
                 int clamped = Math.Clamp((value + setting.Step / 2) / setting.Step * setting.Step, setting.Min, setting.Max);
                 if (clamped != value)
                 {
@@ -403,7 +432,7 @@ internal static class AudioOptionsIntegration
                     syncing = true;
                     try
                     {
-                        Slider.SetValueWithoutNotify(clamped);
+                        Slider!.SetValueWithoutNotify(clamped);
                         if (_segments) _segments!.Refresh();
                     }
                     finally { syncing = false; }
@@ -419,7 +448,7 @@ internal static class AudioOptionsIntegration
         internal void Destroy()
         {
             if (_toggleRoot) Object.Destroy(_toggleRoot);
-            if (_sliderRoot) Object.Destroy(_sliderRoot);
+            if (_sliderRoot) Object.Destroy(_sliderRoot!);
         }
     }
 }

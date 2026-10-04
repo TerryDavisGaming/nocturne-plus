@@ -11,15 +11,15 @@ namespace NocturnePlus;
 /// <summary>
 /// The Nocturne+ branding on the title screen. A "+" follows the nocturne logo, both on the title
 /// and on the logo card of the startup intro, so the logo reads "nocturne+". On the title's menu,
-/// the game's version at the bottom right ("Nocturne 1.0.1") gets the mod's after it, in its own
-/// style: "Nocturne 1.0.1 / Nocturne+ 2.9.0 by TerryDavisGaming".
+/// the game's version at the bottom right ("Nocturne 1.0.2") gets the mod's after it, in its own
+/// style: "Nocturne 1.0.2 / Nocturne+ 2.9.1 by TerryDavisGaming".
 /// </summary>
 internal static class TitleBranding
 {
     private const string PlusText = "+";
     private const string PlusName = "NocturnePlus_Plus";
     private const string ShadowSuffix = "_Shadow";
-    // Laid out like the game's own "Nocturne 1.0.1".
+    // Laid out like the game's own "Nocturne 1.0.2".
     private static string VersionText => $"{ModInfo.Name} {ModInfo.Version}";
     private static string CreditText => "by " + ModInfo.Author;
     // The game's pixel font is a 12-point bitmap face; whole multiples keep it crisp.
@@ -44,7 +44,7 @@ internal static class TitleBranding
     }
 
     private static Vector3 Centre(Rect rect) => new(rect.x + rect.width / 2f, rect.y + rect.height / 2f, 0f);
-    // A version number anywhere in the text: "Nocturne 1.0.1", "v1.0.1", "1.0.1 (25487568)".
+    // A version number anywhere in the text: "Nocturne 1.0.2", "v1.0.2", "1.0.2 (25684815)".
     private static readonly Regex VersionPattern = new(@"\b\d+(\.\d+)+\b", RegexOptions.CultureInvariant);
     private static TMP_Text? fontSource;
     private static PropertyInfo? introScreen;
@@ -352,7 +352,7 @@ internal static class TitleBranding
     // ---- the version at the bottom right ------------------------------------------------------
 
     /// <summary>
-    /// Called once a second. On the title, finds the game's version ("Nocturne 1.0.1") at the bottom
+    /// Called once a second. On the title, finds the game's version ("Nocturne 1.0.2") at the bottom
     /// right and adds the mod's version and author to that same text, so they show in its font, size,
     /// colour and alignment, right under it. Leaving the title puts the game's text back, so nothing
     /// of it shows anywhere else. A text the game sets again gets the lines again.
@@ -480,7 +480,7 @@ internal static class TitleBranding
     }
 
     /// <summary>
-    /// Adds " / Nocturne+ 2.9.0 by TerryDavisGaming" to the game's own version text. When the longer
+    /// Adds " / Nocturne+ 2.9.1 by TerryDavisGaming" to the game's own version text. When the longer
     /// text would reach below the screen (a label that wraps), the label moves up to make room.
     /// </summary>
     private static void AddVersionLines(TMP_Text label)

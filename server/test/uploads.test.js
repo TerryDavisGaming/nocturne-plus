@@ -1,7 +1,7 @@
 // The upload flow: start checks, parts, complete (retries, resumes, refusals), expiry, and every quota.
 
 import { assert, assertEquals, assertMatch } from "./assert.js";
-import { FAKE_ADMIN, ORIGIN, advance, fakeKey, makeHub, publish, register, startBody, upload, zipFingerprint } from "./helpers.js";
+import { FAKE_ADMIN, ORIGIN, advance, fakeKey, makeHub, publish, register, startBody, time, upload, zipFingerprint } from "./helpers.js";
 import worker from "../src/worker.js";
 import { goodBattle, goodPack, media, thumbB64 } from "./make-fixtures.js";
 import { sha256Hex } from "../src/ids.js";
@@ -354,12 +354,39 @@ Deno.test("new versions: an entry hidden while its new version uploads isn't bro
   assertEquals(hub.d1.one("SELECT version FROM packages").version, 1);
 });
 
-Deno.test("pictures: a new uploader's thumbnail waits 24 h; a trusted uploader's shows at once", async () => {
+/** Sets the owner's picture delay the way /admin does (so its audit row is written too). */
+async function setPictureDelay(hub, hours) {
+  const r = await hub.call("PUT", "/v1/admin/settings", { admin: true, json: { picture_delay_hours: String(hours) } });
+  assertEquals(r.status, 200);
+}
+
+Deno.test("pictures: by default a thumbnail shows at once, for a brand new key too, with nothing for the owner to approve", async () => {
   const { hub, key } = await ready();
+  assertEquals(hub.d1.one("SELECT v FROM settings WHERE k = 'picture_delay_hours'").v, "0");
+  const thumb = thumbB64();
+  const id = await publish(hub, key, await goodBattle(), { thumb });
+  assertEquals(hub.d1.one("SELECT trusted_at FROM uploaders").trusted_at, null);
+  assertEquals(hub.d1.one("SELECT picture_state, picture_due FROM packages"), { picture_state: "shown", picture_due: null });
+  assertEquals((await hub.call("GET", "/v1/packages?kind=battle")).body.items[0].thumb, thumb);
+  assertEquals((await hub.call("GET", `/v1/packages/${id}`)).body.thumb, thumb);
+  assertEquals((await hub.call("GET", "/v1/admin/pictures", { admin: true })).body.items, []);
+  // A changed picture on a new version shows at once as well.
+  advance(3 * 86400);
+  const changed = thumbB64({ width: 100 });
+  await publish(hub, key, await goodBattle({ title: "v2" }), { packageId: id, thumb: changed });
+  assertEquals(hub.d1.one("SELECT picture_state, picture_due FROM packages"), { picture_state: "shown", picture_due: null });
+  assertEquals((await hub.call("GET", `/v1/packages/${id}`)).body.thumb, changed);
+});
+
+Deno.test("pictures: with a delay the owner set, a new uploader's thumbnail waits and a trusted uploader's shows at once", async () => {
+  const { hub, key } = await ready();
+  await setPictureDelay(hub, 24);
   const thumb = thumbB64();
   const id = await publish(hub, key, await goodBattle(), { thumb });
   let list = await hub.call("GET", "/v1/packages");
   assertEquals(list.body.items[0].thumb, undefined);
+  assertEquals(hub.d1.one("SELECT picture_state, picture_due FROM packages"), { picture_state: "waiting", picture_due: time() + 24 * 3600 });
+  assertEquals((await hub.call("GET", "/v1/admin/pictures", { admin: true })).body.items.map((x) => x.id), [id]);
   advance(24 * 3600 + 1);
   await hub.cron(HOURLY);
   list = await hub.call("GET", "/v1/packages?kind=battle");
@@ -370,6 +397,60 @@ Deno.test("pictures: a new uploader's thumbnail waits 24 h; a trusted uploader's
   const r = await upload(hub, key, await goodBattle({ title: "v2" }), { packageId: id, thumb: thumbB64({ width: 100 }) });
   assertEquals(r.complete.status, 200);
   assertEquals(hub.d1.one("SELECT picture_state FROM packages").picture_state, "shown");
+});
+
+Deno.test("pictures: the owner's OK shows a waiting thumbnail before its delay is over", async () => {
+  const { hub, key } = await ready();
+  await setPictureDelay(hub, 72);
+  const id = await publish(hub, key, await goodBattle(), { thumb: thumbB64() });
+  assertEquals(hub.d1.one("SELECT picture_state FROM packages").picture_state, "waiting");
+  await hub.call("POST", `/v1/admin/packages/${id}/picture`, { admin: true, json: { show: true } });
+  assertEquals(hub.d1.one("SELECT picture_state, picture_due FROM packages"), { picture_state: "shown", picture_due: null });
+});
+
+Deno.test("pictures: the owner can refuse one that is already showing; it leaves the lists and a refused picture stays refused", async () => {
+  const { hub, key } = await ready();
+  const thumb = thumbB64();
+  const id = await publish(hub, key, await goodBattle(), { thumb });
+  assertEquals((await hub.call("GET", "/v1/packages")).body.items[0].thumb, thumb);
+  assertEquals((await hub.call("GET", `/v1/packages/${id}`)).body.thumb, thumb);
+  const refused = await hub.call("POST", `/v1/admin/packages/${id}/picture`, { admin: true, json: { show: false } });
+  assertEquals([refused.status, refused.body.pictureState], [200, "refused"]);
+  assertEquals((await hub.call("GET", "/v1/packages")).body.items[0].thumb, undefined);
+  assertEquals((await hub.call("GET", `/v1/packages/${id}`)).body.thumb, undefined);
+  assert(hub.d1.one("SELECT picture_refused_at FROM uploaders").picture_refused_at !== null, "remembered on the key");
+  // The same picture sent again with a new version stays refused. The entry itself stays up.
+  advance(3 * 86400);
+  await publish(hub, key, await goodBattle({ title: "v2" }), { packageId: id, thumb });
+  assertEquals(hub.d1.one("SELECT status, picture_state FROM packages"), { status: "live", picture_state: "refused" });
+  // With no delay set nothing waits for anyone else, but a key the owner refused a picture of is held: a different picture
+  // from it waits for the owner's OK with no due time, so neither a timer nor the hourly cron shows it.
+  await publish(hub, key, await goodBattle({ title: "v3" }), { packageId: id, thumb: thumbB64({ width: 100 }) });
+  assertEquals(hub.d1.one("SELECT picture_state, picture_due FROM packages"), { picture_state: "waiting", picture_due: null });
+  assertEquals((await hub.call("GET", `/v1/packages/${id}`)).body.thumb, undefined);
+  advance(30 * 86400);
+  await hub.cron(HOURLY);
+  assertEquals(hub.d1.one("SELECT picture_state FROM packages").picture_state, "waiting");
+  assertEquals((await hub.call("GET", "/v1/admin/pictures", { admin: true })).body.items.map((x) => x.id), [id]);
+  // The owner's OK shows it.
+  await hub.call("POST", `/v1/admin/packages/${id}/picture`, { admin: true, json: { show: true } });
+  assertEquals(hub.d1.one("SELECT picture_state FROM packages").picture_state, "shown");
+});
+
+Deno.test("pictures: a key the owner refused a picture of is held with no delay set, on its next entry too, and others are not", async () => {
+  const { hub, key } = await ready();
+  const first = await publish(hub, key, await goodBattle(), { thumb: thumbB64() });
+  await hub.call("POST", `/v1/admin/packages/${first}/picture`, { admin: true, json: { show: false } });
+  advance(3 * 86400);
+  const second = await publish(hub, key, await goodBattle({ title: "Second", id: "4f2b8c1e-7d6a-4b5c-9e8f-0a1b2c3d4e5f" }), { thumb: thumbB64({ width: 90 }) });
+  assertEquals(hub.d1.one("SELECT picture_state, picture_due FROM packages WHERE id = ?", second), { picture_state: "waiting", picture_due: null });
+  assertEquals((await hub.call("GET", `/v1/packages/${second}`)).body.thumb, undefined);
+  assertEquals((await hub.call("GET", "/v1/admin/pictures", { admin: true })).body.items.map((x) => x.id), [second]);
+  // Another key is not held: its picture shows at once.
+  const other = fakeKey(2);
+  await register(hub, other, "Other");
+  const third = await publish(hub, other, await goodBattle({ title: "Third", id: "5a3c9d2f-8e7b-4c6d-8f9a-1b2c3d4e5f60" }), { thumb: thumbB64({ width: 80 }) });
+  assertEquals(hub.d1.one("SELECT picture_state, picture_due FROM packages WHERE id = ?", third), { picture_state: "shown", picture_due: null });
 });
 
 Deno.test("pictures: an unchanged thumbnail keeps its state on a new version", async () => {
@@ -624,8 +705,9 @@ Deno.test("new versions: the same files with a new description or picture publis
   assertEquals(hub.r2.objects.size, 2);
 });
 
-Deno.test("pictures: after the owner refuses one, the uploader's new thumbnails wait even once the key is trusted", async () => {
+Deno.test("pictures: with a delay set, after the owner refuses one, the uploader's new thumbnails wait even once the key is trusted", async () => {
   const { hub, key } = await ready();
+  await setPictureDelay(hub, 24);
   const id = await publish(hub, key, await goodBattle({ title: "Trusted entry" }), { thumb: thumbB64() });
   advance(8 * 86400);
   await hub.cron("17 3 * * *");

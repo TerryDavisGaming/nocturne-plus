@@ -60,7 +60,7 @@ internal static partial class BattleDialogue
         // a director Begin made.
         var ready = Method(typeof(ReadyCountdownView), "ShowGetReadyAndPressKeyToStartText");
         var endRoutine = Method(typeof(CombatManagerV3), "EndCombatRoutine");
-        var endWait = Method(typeof(CombatManagerV3), "_EndCombatRoutine_b__99_0");
+        var endWait = Lambda(typeof(CombatManagerV3), "EndCombatRoutine");
         var expressions = Method(typeof(PortraitManager), "GetExpressions");
         var bubble = Method(typeof(DialogueStyleNormal), "GetDialogueBubbleHeight");
         var canPause = Method(typeof(NocturneGui), "CanPauseGameState");
@@ -79,6 +79,19 @@ internal static partial class BattleDialogue
 
     private static System.Reflection.MethodInfo Method(Type type, string name) =>
         AccessTools.DeclaredMethod(type, name) ?? throw new MissingMethodException(type.FullName, name);
+
+    // The game's compiler numbers its lambdas, and the number moves when the game is rebuilt (the update to
+    // Steam build 25684815 turned EndCombatRoutine's b__99_0 into b__100_0). So the wait's condition is found
+    // by its shape: the one method of the class named for the routine's lambdas, with no parameters, returning bool.
+    private static System.Reflection.MethodInfo Lambda(Type type, string routine)
+    {
+        var name = new System.Text.RegularExpressions.Regex("^_" + System.Text.RegularExpressions.Regex.Escape(routine) + @"_b__\d+_\d+$");
+        var found = new List<System.Reflection.MethodInfo>();
+        foreach (var method in AccessTools.GetDeclaredMethods(type))
+            if (method.ReturnType == typeof(bool) && method.GetParameters().Length == 0 && name.IsMatch(method.Name)) found.Add(method);
+        if (found.Count == 1) return found[0];
+        throw new MissingMethodException(type.FullName, $"{routine} lambda: {found.Count} candidates ({string.Join(", ", found.ConvertAll(m => m.Name))}) instead of exactly one");
+    }
 
     private static HarmonyMethod Hook(string name) => new(typeof(BattleDialogue), name);
 

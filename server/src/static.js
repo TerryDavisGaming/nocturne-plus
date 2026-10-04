@@ -212,7 +212,7 @@ export const ADMIN_JS = String.raw`(function () {
 
   views.pictures = function (view) {
     api("GET", "pictures").then(function (r) {
-      if (!r.items.length) { add(view, el("p", { text: "no pictures waiting." })); return; }
+      if (!r.items.length) { add(view, el("p", { text: "no pictures waiting. new pictures show at once unless picture_delay_hours (settings) is above 0 or the key had a picture refused; to take one down, open its entry and refuse the picture." })); return; }
       var grid = el("div", { "class": "grid" });
       r.items.forEach(function (p) {
         var card = el("div", { "class": "card" },

@@ -2,7 +2,7 @@
 
 this folder is the server behind GET CUSTOM BATTLES in the mod: an online list of custom battles and custom difficulties that players upload and download from inside the game. it runs on YOUR OWN cloudflare account at `https://hub.nocturnbutbetter.com`, as one cloudflare worker with a d1 database and an r2 bucket.
 
-uploads go live the moment they finish. there are no accounts: each player's game makes a random secret key, and the hub stores only a scrambled form of it (sha-256). you can remove anything, and players can report entries. nothing is hidden just because it was reported.
+uploads go live the moment they finish, and so do their listing pictures: nothing waits for your approval (except the pictures of a key you refused one from, below). there are no accounts: each player's game makes a random secret key, and the hub stores only a scrambled form of it (sha-256). you can remove anything, and players can report entries. nothing is hidden just because it was reported.
 
 this readme is the owner's runbook: deploying, the admin page, takedowns, spam waves, backups and updates. `API.md` describes the api the mod talks to.
 
@@ -81,7 +81,7 @@ the free plan's rule can only match on the path, not the hostname, so it covers 
 
 - overview: counts, storage, the database size, today's uploads and new keys, open reports, pictures waiting, and cache purges that are stuck.
 - reports: open reports grouped per entry, with a count per reason.
-- pictures: uploaders' thumbnails waiting to show. a new uploader's thumbnail shows after 24 hours unless you refuse it, or at once if you press show. uploaders whose entries have been live for a week with no strikes get theirs shown straight away, unless you've refused one of their pictures before: then their new ones wait too.
+- pictures: thumbnails waiting for your ok. with the default `picture_delay_hours` of 0, new pictures show the moment an upload finishes and you never have to approve one, so this list holds only the pictures of keys you have refused a picture of: whatever the delay, a refused key's new pictures wait here until you press show or refuse, with no timer. to take a picture down, open its entry and press refuse picture (see takedowns below). if you ever want a delay for everyone, set `picture_delay_hours` in settings above 0. a new uploader's thumbnail then waits that many hours unless you press show or refuse it, and uploaders whose entries have been live for a week with no strikes get theirs shown straight away. raising it is also the quickest brake during a wave of bad pictures.
 - entries: every entry, filtered by status, how recently it changed, how new its uploader's key is, or text. open one to hide, restore, remove, quarantine, show or refuse its picture, release its battle id, resolve its reports, or download it to look at.
 - the uploader panel (from an entry): ban, unban, set strikes, turn the key off for good, remove all their entries, or move their entries to another uploader.
 - spam waves: bulk hide or remove, pause uploads from new keys, close uploads, stop new keys.
@@ -99,6 +99,8 @@ a copyright notice (see `/legal` for what one must contain):
 3. 3 copyright strikes ban the uploader's key. that's the repeat-infringer policy on `/legal`.
 4. the same uploader can't upload that battle again. another uploader can (so removing a copy never locks out the real creator); release the battle id if you removed it by mistake.
 5. a valid counter-notice: wait 10 to 14 business days, and if the claimant doesn't go to court, press restore. a restore doesn't take the strike back; set the uploader's strikes on their panel if it shouldn't count.
+
+an offensive or unwanted picture: open the entry on `/admin` and press refuse picture. the picture leaves the listing at once (the cache is purged) and the entry stays up with a title tile. the same picture sent again with a new version stays refused, and that key's next new pictures wait on the pictures tab for your ok instead of showing at once. if the uploader keeps sending bad ones, remove the entry, add a strike, or ban the key.
 
 offensive, spam or broken entries: remove with that reason. the file is kept 24 hours. hide instead if you want to look at it first; the uploader sees "under review".
 
@@ -133,7 +135,9 @@ their key lived on their pc; without it they can't manage their uploads. you can
 
 ## updating the server
 
-the deployed code lives in the repo the button made in your github account. a server fix is a change pushed to that repo (by you, or by the developer with your ok); cloudflare rebuilds and redeploys on its own. database changes run before the new code and only ever add things, so the old code keeps working for the minute in between. a new version starts with an empty cache, so expect a short burst of database reads.
+the deployed code lives in the repo the button made in your github account. a server fix is a change pushed to that repo (by you, or by the developer with your ok); cloudflare rebuilds and redeploys on its own. database changes run before the new code and only add things or change data the old code already copes with, so the old code keeps working for the minute in between. a new version starts with an empty cache, so expect a short burst of database reads.
+
+the update that made pictures show at once adds `migrations/0003_pictures_at_once.sql`. the build's deploy script (`npm run deploy`) applies new migrations before it deploys, so there is nothing for you to click. the migration sets `picture_delay_hours` to 0 only if it still has the old default of 24 and you never saved it on `/admin`, and shows the pictures that were waiting only because of the old delay (the ones with a due time; a picture held for your ok has none and stays). if your build runs plain `wrangler deploy` instead, the hub makes the same change by itself in the next hourly job (within an hour, at minute 7). either way, `/admin` > settings should then show `picture_delay_hours` 0, and a delay you set later is never touched.
 
 ## optional extras
 
@@ -142,7 +146,7 @@ the deployed code lives in the repo the button made in your github account. a se
   - an api token that can only read analytics, as the secret `STATS_TOKEN`: click your profile icon (top right) > my profile > api tokens > create token > custom token > get started. give it a name, then under permissions pick "account", "account analytics", "read". under account resources pick "include" and this account. continue to summary > create token, and copy it straight into the secret (cloudflare shows it only once).
 
   without them, downloads are still recorded but the game shows no counts and hides "most downloaded". a token added later counts everything from the last 3 months.
-- a discord webhook: add its url as the secret `NOTIFY_WEBHOOK` to get a message for every new upload (with its picture, before players see it) and every report. recommended, since uploads go live at once. it never pings anyone.
+- a discord webhook: add its url as the secret `NOTIFY_WEBHOOK` to get a message for every new upload (with its picture, which is already showing) and every report. recommended, since uploads and their pictures go live at once and this is how you hear about one without polling `/admin`: without it, you won't hear about a bad picture until a player reports it. it never pings anyone.
 - a dmca agent: registering one with the us copyright office costs $6 for 3 years. WITHOUT a registered agent there's no section 512(c) safe harbor for you. this isn't legal advice.
 
 ## what the free plan can't stop

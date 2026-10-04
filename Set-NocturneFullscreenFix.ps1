@@ -3,7 +3,7 @@
 .SYNOPSIS
 Enables or restores the optional Direct3D 11 fullscreen fix for Nocturne.
 .DESCRIPTION
-Supports Steam build 25487568 only. Changes three bytes and four padding bytes
+Supports Steam build 25684815 only. Changes three bytes and four padding bytes
 in the local globalgamemanagers file; this script contains no game assets.
 The original file is backed up beside it. Saves and preferences are untouched.
 Close Nocturne first. Use -WhatIf to check compatibility without writing files.
@@ -21,10 +21,10 @@ param(
 
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
-$originalHash = 'D59B6C07BA986BB126D10004CC33E7986836C5B58E419C4789A3B187DB84EEE9'
-$displayHash = '5982971BE3365B716E0204E8C99EACCEA05D7C82F52D787C13E3EE5B19B11418'
-$assemblyHash = 'D7F8BD3A701D5154EBD57840AD9F1E11D14B307D242CFD53CFCACB72DB50B9D1'
-$metadataHash = 'A8ED37CBD7754037ADC72DC5D4B3A5E5C9D803355B80C8CAF9FE7C0C7BAA33EE'
+$originalHash = 'BCC90FEF261173BFFBA17B51810DFD199707EA77B0D57D13BC5DB155434FCA7F'
+$displayHash = '283AC3752F3DE92B2C4102F6A98044B847C6AAAD12817A8C90D5A64DC7238531'
+$assemblyHash = 'AD2AFCCED1F8AE7E2A63C07DFF42FF35BEA9F4E53F74FF1EE534C60E63905B53'
+$metadataHash = '8677BDCF38149BC4D35E3BF82E8EF40EC5EFBE4050F1497E931C81475A2F91E1'
 
 function Get-FileSha256([string]$Path) {
     if (-not [IO.File]::Exists($Path)) { throw "Required file is missing: $Path" }
@@ -165,28 +165,28 @@ function Convert-DisplayBytes([byte[]]$Source, [string]$SourceHash, [bool]$Enabl
     $isOriginal = $SourceHash -eq $originalHash
     $isPatched = $SourceHash -eq $displayHash
     if (-not ($isOriginal -or $isPatched)) { throw 'Refusing an unknown globalgamemanagers file.' }
-    $sourceLength = if ($isOriginal) { 447916 } else { 447920 }
+    $sourceLength = if ($isOriginal) { 448004 } else { 448008 }
     if ($Source.Length -ne $sourceLength) { throw 'Unexpected globalgamemanagers length.' }
-    $oldHeader = if ($isOriginal) { 0xAC } else { 0xB0 }
+    $oldHeader = if ($isOriginal) { 0x04 } else { 0x08 }
     $oldFirstApi = if ($isOriginal) { 0x12 } else { 0x02 }
     $oldSecondApi = if ($isOriginal) { 0x02 } else { 0x12 }
-    if ($Source[31] -ne $oldHeader -or $Source[227468] -ne $oldFirstApi -or $Source[227472] -ne $oldSecondApi) {
+    if ($Source[31] -ne $oldHeader -or $Source[227556] -ne $oldFirstApi -or $Source[227560] -ne $oldSecondApi) {
         throw 'The pinned graphics-API byte ranges do not match.'
     }
     if ($isPatched) {
-        for ($offset = 447916; $offset -lt 447920; $offset++) {
+        for ($offset = 448004; $offset -lt 448008; $offset++) {
             if ($Source[$offset] -ne 0) { throw 'The pinned trailing padding does not match.' }
         }
     }
 
-    $length = if ($Enable) { 447920 } else { 447916 }
+    $length = if ($Enable) { 448008 } else { 448004 }
     $result = New-Object byte[] $length
     [Buffer]::BlockCopy($Source, 0, $result, 0, [Math]::Min($Source.Length, $length))
     # Unity's big-endian file-size header, followed by its D3D11/D3D12 priority list.
     # Four zero padding bytes reproduce the tested serialized file exactly.
-    $result[31] = if ($Enable) { 0xB0 } else { 0xAC }
-    $result[227468] = if ($Enable) { 0x02 } else { 0x12 }
-    $result[227472] = if ($Enable) { 0x12 } else { 0x02 }
+    $result[31] = if ($Enable) { 0x08 } else { 0x04 }
+    $result[227556] = if ($Enable) { 0x02 } else { 0x12 }
+    $result[227560] = if ($Enable) { 0x12 } else { 0x02 }
     $expected = if ($Enable) { $displayHash } else { $originalHash }
     if ((Get-BytesSha256 $result) -ne $expected) { throw 'Sparse patch verification failed. No game file was changed.' }
     return ,$result
@@ -226,18 +226,18 @@ if ($MyInvocation.InvocationName -eq '.') { return }
 $root = Find-NocturneGamePath $GamePath
 $data = Join-Path $root 'Nocturne_Data'
 $target = Join-Path $data 'globalgamemanagers'
-$backup = Join-Path $data 'globalgamemanagers.nocturne-fullscreen-original-25487568.bak'
+$backup = Join-Path $data 'globalgamemanagers.nocturne-fullscreen-original-25684815.bak'
 if (-not [IO.File]::Exists((Join-Path $root 'Nocturne.exe'))) { throw 'GamePath does not contain Nocturne.exe.' }
 if ((Get-FileSha256 (Join-Path $root 'GameAssembly.dll')) -ne $assemblyHash -or
     (Get-FileSha256 (Join-Path $data 'il2cpp_data\Metadata\global-metadata.dat')) -ne $metadataHash) {
-    throw 'This game build is not supported. This fix supports Steam build 25487568 only; no files were changed.'
+    throw 'This game build is not supported. This fix supports Steam build 25684815 only; no files were changed.'
 }
 $steamManifest = Get-SteamManifestPath $root
 if ($steamManifest -and [IO.File]::Exists($steamManifest)) {
     $manifestText = $null
     try { $manifestText = Read-SharedText $steamManifest }
-    catch { Write-Output "Steam's Nocturne manifest could not be read, so its build number was not checked. The game files match build 25487568." }
-    if ($null -ne $manifestText -and $manifestText -notmatch '"buildid"\s+"25487568"') {
+    catch { Write-Output "Steam's Nocturne manifest could not be read, so its build number was not checked. The game files match build 25684815." }
+    if ($null -ne $manifestText -and $manifestText -notmatch '"buildid"\s+"25684815"') {
         throw 'Steam reports an unsupported Nocturne build. No files were changed.'
     }
 }
@@ -257,7 +257,7 @@ $original = Convert-DisplayBytes $source $sourceHash $false
 $needsBackup = $enable -and -not [IO.File]::Exists($backup)
 $needsChange = $sourceHash -ne $desiredHash
 if (-not $WhatIfPreference) { Assert-NocturneClosed }
-Write-Output "Compatibility verified: Nocturne Steam build 25487568; action $Action."
+Write-Output "Compatibility verified: Nocturne Steam build 25684815; action $Action."
 if (-not ($needsBackup -or $needsChange)) { Write-Output 'Already in the requested state. No files changed.'; return }
 if (-not $PSCmdlet.ShouldProcess($target, "$Action optional Direct3D 11 fullscreen fix; keep a verified original backup")) { return }
 

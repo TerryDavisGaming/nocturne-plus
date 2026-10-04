@@ -52,7 +52,7 @@ export async function legalPage(env) {
     "<li>sexual content involving minors. it's removed, kept where the law requires it, and reported where the law requires it</li>" +
     "<li>harassment or offensive pictures</li>" +
     "<li>spam</li></ul>" +
-    "<p>uploads go live straight away. the hub's owner can remove anything, and players can report entries from the game.</p>" +
+    "<p>uploads and their pictures go live straight away. the hub's owner can remove anything, and players can report entries and pictures from the game.</p>" +
     "<h2>copyright notices</h2>" +
     `<p>send notices to ${who}. a notice needs:</p><ul>` +
     "<li>the work you say is being infringed</li>" +

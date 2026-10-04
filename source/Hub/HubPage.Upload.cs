@@ -645,7 +645,7 @@ internal static partial class HubPage
             lines.Add($"{Size(b.Size)} to upload, {Plural(b.Entries, "file", "files")}: {what}.");
             if (b.Kind == "battle") lines.Add("Inside: " + Inside(b.Contents) + ".");
             if (d.Of != null) lines.Add($"This makes v{d.Of.Version + 1} of {d.Of.Title}.");
-            lines.Add(builtThumb != null ? "Its card is the listing's picture; it shows after the hub's owner checks it (or after 24 hours)."
+            lines.Add(builtThumb != null ? "Its card is the listing's picture; it shows as soon as the upload is done (unless the hub holds new pictures back)."
                 : "The listing shows a title tile" + (b.Kind == "battle" && b.CardBytes == null ? " (the battle has no card picture)." : "."));
         }
         foreach (var problem in sendProblems) lines.Add("The hub said: " + problem);
@@ -679,7 +679,7 @@ internal static partial class HubPage
             "- Upload only what you made. The charts have to be your own work. A battle made from an osu! beatmap counts only if you mapped it or the mapper allowed it.\n\n" +
             "- Songs, pictures and videos usually belong to someone else. Include them only if you're allowed to share them. " +
             "Many custom battles use commercial songs; if a song's owner asks, the battle is taken down.\n\n" +
-            "- Your upload goes live straight away; your picture shows after a check. The hub's owner can remove anything, and players can report entries.\n\n" +
+            "- Your upload goes live straight away, and so does its picture unless the hub holds new pictures back. The hub's owner can remove anything, and players can report entries.\n\n" +
             "- A hub key that has uploads removed for copyright 3 times can't upload any more.\n\n" +
             "- What's stored: the files you upload, the details in the listing, the name you choose, and a scrambled form of your game's hub key. " +
             "No account, e-mail, Steam ID, IP address or Windows user name is stored.\n\n" +

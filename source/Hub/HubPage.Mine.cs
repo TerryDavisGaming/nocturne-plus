@@ -124,7 +124,7 @@ internal static partial class HubPage
         row.Sub = card.StatusWords;
         AddChips(row, card);
         bool changed = changedSince.TryGetValue(card.Id, out bool c) && c && card.Status == "live";
-        row.Note = changed ? "<color=#F2B02E>Changed since your last upload</color>" : card.PictureState == "waiting" ? "(its picture shows after a check)" : "";
+        row.Note = changed ? "<color=#F2B02E>Changed since your last upload</color>" : card.PictureState == "waiting" ? "(the hub is holding its picture back)" : "";
         (row.Tag, row.TagColor) = MineTag(card);
         row.Meta = KindBadge(card.Kind, card.Lanes) + "\n" + $"v{card.Version}" + (card.Downloads is long n ? $"   {Count(n)} {(n == 1 ? "download" : "downloads")}" : "");
         return row;
@@ -169,7 +169,7 @@ internal static partial class HubPage
         var facts = new List<string> { $"v{card.Version}  -  " + SizeAndCount(card.Size, card.Downloads) };
         facts.Add(card.PictureState switch
         {
-            "waiting" => "Its picture shows after the hub's owner checks it (or after 24 hours).",
+            "waiting" => "The hub is holding its picture back. It shows after the hub's owner checks it, or when the hub's delay is over.",
             "refused" => "The hub's owner didn't take its picture, so it shows a title tile.",
             _ => "",
         });

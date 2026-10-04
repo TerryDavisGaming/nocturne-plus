@@ -4,6 +4,10 @@
 import { HubError } from "./http.js";
 import { LIMITS, cleanLine } from "./names.js";
 
+// picture_delay_hours 0 (the default): uploaders' listing pictures show at once. Above 0, the pictures of new
+// keys (and of keys the owner refused a picture of) wait that long, or for the owner's OK on /admin.
+// pictures_at_once is the marker of migration 0003 and cron.js pictureCatchUp(): the move from the old
+// default of 24 hours to 0 happens once and never undoes a delay the owner sets afterwards.
 export const DEFAULTS = {
   uploads_open: "1", new_keys_open: "1", min_client: "2.7.0", message: "", hub_name: "nocturne+ hub",
   takedown_contact: "", max_package_bytes: "104857600", max_entries: "1000", max_unpacked_bytes: "209715200",
@@ -11,7 +15,7 @@ export const DEFAULTS = {
   uploads_per_key_day: "10", bytes_per_key_day: "524288000", probation_hours: "48", probation_uploads_day: "2",
   probation_bytes_day: "104857600", live_per_key: "50", uploads_global_day: "200", attempts_global_day: "1000",
   new_keys_global_day: "2000", reports_per_key_day: "20", reports_global_day: "1000", close_uploads_key_days: "0",
-  strikes_to_ban: "3", picture_delay_hours: "24", max_songs_per_pack: "40", stats_salt: "", stats_salt_prev: "",
+  strikes_to_ban: "3", picture_delay_hours: "0", pictures_at_once: "0", max_songs_per_pack: "40", stats_salt: "", stats_salt_prev: "",
   stats_folded_until: "0", orphan_cursor: "", reports_per_address_day: "50", new_keys_per_address_day: "20", cursor_key: "",
 };
 
